@@ -87,10 +87,10 @@ class DDPM:
 # For use in notebook 05
 @torch.no_grad()
 def sample_w(
-    model, ddpm, input_size, T, c, device, w_tests=None, store_freq=10
+    model, ddpm, input_size, T, c, c1, device, w_tests=None, store_freq=10
 ):
     if w_tests is None:
-        w_tests = [-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0]
+        w_tests = [-1.0, 0.0, 1, 2.0]
     # Preprase "grid of samples" with w for rows and c for columns
     n_samples = len(w_tests) * len(c)
 
@@ -101,9 +101,11 @@ def sample_w(
 
     # One c for each w
     c = c.repeat(len(w_tests), 1)
-
     # Double the batch
     c = c.repeat(2, 1)
+
+    c1 = c1.repeat(len(w_tests), 1, 1)
+    c1 = c1.repeat(2, 1, 1)  # Lặp lại một lần nữa để khớp với c
 
     # Don't drop context at test time
     c_mask = torch.ones_like(c).to(device)
@@ -118,9 +120,13 @@ def sample_w(
         # Double the batch
         x_t = x_t.repeat(2, 1, 1, 1)
         t = t.repeat(2, 1, 1, 1)
-
+        # print("x_t"|  x_t)
+        # print("t"|  t)
+        # print("c"|  c)
+        # print("c1"|  c1)
+        # print("c_mask" | c_mask)
         # Find weighted noise
-        e_t = model(x_t, t, c, c_mask)
+        e_t = model(x_t, t, c, c1, c_mask)
         e_t_keep_c = e_t[:n_samples]
         e_t_drop_c = e_t[n_samples:]
         e_t = (1 + w) * e_t_keep_c - w * e_t_drop_c
